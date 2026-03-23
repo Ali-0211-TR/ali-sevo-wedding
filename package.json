@@ -1,0 +1,26 @@
+{
+  "name": "wedding-alishan-sevinch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wedding invitation platform - Alishan & Sevinch",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:admin\" \"npm run dev:web\"",
+    "build:backend": "npm run build --workspace=apps/backend",
+    "build:admin": "npm run build --workspace=apps/admin",
+    "build:web": "npm run build --workspace=apps/web",
+    "build": "npm run build:backend && npm run build:admin && npm run build:web",
+    "db:migrate": "npm run prisma:migrate --workspace=apps/backend",
+    "db:seed": "npm run prisma:seed --workspace=apps/backend",
+    "db:studio": "npm run prisma:studio --workspace=apps/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

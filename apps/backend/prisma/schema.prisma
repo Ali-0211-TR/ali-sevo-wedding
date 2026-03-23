@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Roles & Users ───────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  MANAGER
+  VIEWER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Guests & Invitations ────────────────────────────────────
+
+enum InvitationType {
+  INDIVIDUAL
+  COUPLE
+  FAMILY
+}
+
+enum RsvpStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  MAYBE
+}
+
+enum Language {
+  RU
+  UZ
+  EN
+  TR
+}
+
+model Guest {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  phone       String?
+  email       String?
+  language    Language @default(RU)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invitation   Invitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  invitationId String?
+
+  rsvpStatus   RsvpStatus @default(PENDING)
+  rsvpMessage  String?
+  rsvpAt       DateTime?
+
+  dietaryNeeds String?
+  plusOne       Boolean  @default(false)
+
+  @@index([invitationId])
+}
+
+model Invitation {
+  id              String         @id @default(uuid())
+  slug            String         @unique
+  type            InvitationType @default(INDIVIDUAL)
+  language        Language       @default(RU)
+
+  // Custom texts per invitation (JSON with language keys)
+  customGreeting  String?        @db.Text
+  customMessage   String?        @db.Text
+  customClosing   String?        @db.Text
+
+  guests          Guest[]
+
+  // Which events this invitation covers
+  invitationEvents InvitationEvent[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+// ─── Events (Wedding, Ceremony, Party, etc.) ─────────────────
+
+model Event {
+  id          String   @id @default(uuid())
+  // Translatable fields stored as JSON: { "ru": "...", "uz": "...", "en": "...", "tr": "..." }
+  title       Json
+  description Json?
+  location    String?
+  address     String?
+  mapUrl      String?
+  date        DateTime
+  endDate     DateTime?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  coverImage  String?
+
+  invitationEvents InvitationEvent[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvitationEvent {
+  id           String     @id @default(uuid())
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  invitationId String
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId      String
+
+  @@unique([invitationId, eventId])
+}
+
+// ─── CMS: Pages & Blocks (Page Builder) ──────────────────────
+
+model Page {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  // JSON translatable: { "ru": "...", "uz": "...", "en": "...", "tr": "..." }
+  title       Json
+  isPublished Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  showInNav   Boolean  @default(true)
+
+  blocks      Block[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum BlockType {
+  HERO
+  TEXT
+  IMAGE
+  GALLERY
+  VIDEO
+  COUNTDOWN
+  EVENT_LIST
+  RSVP_FORM
+  MAP
+  CUSTOM_HTML
+  BLOG_LIST
+  TIMELINE
+  COUPLE_INFO
+}
+
+model Block {
+  id        String    @id @default(uuid())
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId    String
+  type      BlockType
+  // JSON content for the block (varies by type)
+  content   Json
+  settings  Json?
+  sortOrder Int       @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([pageId])
+}
+
+// ─── Blog / News ─────────────────────────────────────────────
+
+model BlogPost {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  // JSON translatable
+  title       Json
+  excerpt     Json?
+  content     Json
+  coverImage  String?
+  isPublished Boolean  @default(false)
+  publishedAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Media Library ───────────────────────────────────────────
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+model Media {
+  id          String    @id @default(uuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  url         String
+  thumbnailUrl String?
+  type        MediaType
+  alt         String?
+
+  createdAt   DateTime  @default(now())
+}
+
+// ─── Site Settings ───────────────────────────────────────────
+
+model SiteSettings {
+  id              String  @id @default("main")
+
+  // JSON translatable
+  siteTitle       Json?
+  coupleNames     Json?
+  weddingDate     DateTime?
+  venue           Json?
+  venueAddress    Json?
+
+  // Theme
+  primaryColor    String  @default("#b08968")
+  secondaryColor  String  @default("#ddb892")
+  accentColor     String  @default("#7f5539")
+  fontFamily      String  @default("Playfair Display")
+  bodyFontFamily  String  @default("Lato")
+
+  // Background music
+  backgroundMusicUrl String?
+  musicAutoplay   Boolean @default(false)
+
+  // Social
+  instagramUrl    String?
+  telegramUrl     String?
+
+  // Meta
+  metaDescription Json?
+  ogImage         String?
+  favicon         String?
+
+  defaultLanguage Language @default(RU)
+
+  updatedAt       DateTime @updatedAt
+}
